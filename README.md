@@ -12,6 +12,7 @@ Pada workshop ini akan dijelaskan tentang:
 8. Hands-on membuat measure menggunakan DAX (Data Analysis Expression)
 9. Hands-on membuat chart di Power BI
 10. Hands-on membuat slicer atau filter di Power BI
+12. Tips dan rekomendasi channel youtube untuk belajar lebih lanjut
 
 ---
 
