@@ -1,0 +1,77 @@
+@echo off
+setlocal
+title Workshop First Step Into Power BI Dashboard
+
+:: 1. Membuat direktori kerja
+set "TARGET_DIR=C:\dec\wspbi"
+echo =======================================================
+echo   WORKSHOP FIRST STEP INTO POWER BI DASHBOARD
+echo =======================================================
+echo [1/6] Menyiapkan folder kerja...
+if not exist "%TARGET_DIR%" mkdir "%TARGET_DIR%"
+if not exist "%TARGET_DIR%\sql_data" mkdir "%TARGET_DIR%\sql_data"
+cd /d "%TARGET_DIR%"
+
+:: 2. Cek apakah Docker sudah terinstal
+echo [2/6] Mengecek status Docker Desktop...
+docker --version >nul 2>&1
+if %errorlevel% neq 0 (
+    echo Docker belum terdeteksi. Menginstal via Winget...
+    winget install -e --id Docker.DockerDesktop --accept-package-agreements --accept-source-agreements
+    echo.
+    echo [PENTING] RESTART KOMPUTER ANDA sekarang, lalu jalankan skrip ini lagi.
+    pause
+    exit
+)
+
+:: 3. Membuat file docker-compose.yml
+echo [3/6] Membuat konfigurasi database...
+(
+echo version: '3.8'
+echo services:
+echo   sql-express:
+echo     image: mcr.microsoft.com/mssql/server:2022-latest
+echo     container_name: sql-express-workshop
+echo     restart: always
+echo     environment:
+echo       - ACCEPT_EULA=Y
+echo       - MSSQL_SA_PASSWORD=Workshop_Password_2026!
+echo       - MSSQL_PID=Express
+echo     ports:
+echo       - "1433:1433"
+echo     volumes:
+echo       - ./sql_data:/var/opt/mssql
+echo     user: "0:0"
+) > docker-compose.yml
+
+:: 4. Menjalankan Docker Compose
+echo [4/6] Menjalankan SQL Server Express...
+docker info >nul 2>&1
+if %errorlevel% neq 0 (
+    start "" "C:\Program Files\Docker\Docker\Docker Desktop.exe"
+    echo Menunggu Docker Engine aktif (bisa memakan waktu 1-2 menit)...
+    :wait_docker
+    docker info >nul 2>&1 || (timeout /t 5 >nul & goto wait_docker)
+)
+docker compose up -d
+
+:: 5. Membuat User Khusus Workshop (dec)
+echo [5/6] Menunggu database siap (30 detik) untuk konfigurasi user...
+timeout /t 30 /nobreak >nul
+
+echo Membuat user 'dec' dengan password 'Siapbisa@2026'...
+docker exec -it sql-express-workshop /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P Workshop_Password_2026! -C -Q "CREATE LOGIN dec WITH PASSWORD = 'Siapbisa@2026', CHECK_POLICY = OFF; ALTER SERVER ROLE sysadmin ADD MEMBER dec;"
+
+:: 6. Selesai
+echo [6/6] Verifikasi Akhir...
+echo.
+echo =======================================================
+echo              SETUP BERHASIL DISIAPKAN!
+echo =======================================================
+echo Silakan Login ke SQL Server dengan detail berikut:
+echo Server   : localhost
+echo Username : dec
+echo Password : Siapbisa@2026
+echo =======================================================
+echo.
+pause
