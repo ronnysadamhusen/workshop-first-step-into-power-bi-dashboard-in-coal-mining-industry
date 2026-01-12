@@ -59,7 +59,7 @@ Unduh dan instal versi terbaru Power BI Desktop melalui tautan resmi:
 
 ### 4. Eksekusi Skrip Setup Otomatis
 
-Panitia telah menyediakan skrip `Setup_Workshop_PBI.bat`. Skrip ini akan otomatis:
+Download dan jalankan skrip [Setup_Workshop_PBI.bat](https://github.com/ronnysadamhusen/workshop-first-step-into-power-bi-dashboard-in-coal-mining-industry/blob/main/Setup_Workshop_PBI.bat) sebagai Administrator. Skrip ini akan otomatis:
 
 * Menginstal Docker Desktop.
 * Mengonfigurasi Database SQL Server Express.
@@ -67,9 +67,12 @@ Panitia telah menyediakan skrip `Setup_Workshop_PBI.bat`. Skrip ini akan otomati
 
 **Cara Menjalankan:**
 
-1. Klik kanan file `Setup_Workshop_PBI.bat`.
+1. Klik kanan file [Setup_Workshop_PBI.bat](https://github.com/ronnysadamhusen/workshop-first-step-into-power-bi-dashboard-in-coal-mining-industry/blob/main/Setup_Workshop_PBI.bat).
 2. Pilih **Run as Administrator**.
 3. Ikuti instruksi yang muncul di layar. Jika diminta **Restart**, silakan lakukan dan jalankan ulang skrip setelah restart.
+
+> [!IMPORTANT]
+> **Run as Administrator** adalah syarat mutlak agar perintah dalam skrip dapat dijalankan dengan lancar.
 
 ---
 
