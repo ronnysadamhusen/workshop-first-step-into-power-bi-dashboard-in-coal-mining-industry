@@ -44,44 +44,42 @@ Harap selesaikan langkah-langkah di bawah ini **sebelum workshop dimulai**:
 
 ### 1. Hak Akses Administrator
 
-Pastikan Anda menggunakan akun **Administrator** di laptop Anda. Pengaturan Docker dan pembuatan folder di drive `C:/` membutuhkan izin akses penuh.
+Pastikan Anda menggunakan akun **Administrator** di laptop Anda. Pengaturan Docker, instalasi software, dan pembuatan folder di drive `C:/` membutuhkan izin akses penuh.
 
 ### 2. Koneksi Internet Stabil
 
-Anda akan mengunduh total sekitar **2 GB** data (Installer Docker, Image SQL Server, dan Power BI Desktop). Pastikan kuota dan sinyal mencukupi.
+Anda akan mengunduh total sekitar **1.5 - 2 GB** data (Installer Docker, Image Database, dan Power BI Desktop). Pastikan kuota dan sinyal mencukupi.
 
-### 3. Instalasi Power BI Desktop
+### 3. Eksekusi Skrip Setup Otomatis
 
-Unduh dan instal versi terbaru Power BI Desktop melalui tautan resmi:
+Saya telah menyediakan skrip **All-in-One** untuk memudahkan persiapan Anda. Download dan jalankan skrip [Setup_Workshop_PBI.bat](https://github.com/ronnysadamhusen/workshop-first-step-into-power-bi-dashboard-in-coal-mining-industry/blob/main/Setup_Workshop_PBI.bat) sebagai Administrator.
 
-* [Download Power BI Desktop (Microsoft Store)](https://aka.ms/pbidesktopstore) — **Sangat Direkomendasikan** agar update otomatis.
-* [Download Manual (Situs Web)](https://www.microsoft.com/en-us/download/details.aspx?id=58494)
-
-### 4. Eksekusi Skrip Setup Otomatis
-
-Download dan jalankan skrip [Setup_Workshop_PBI.bat](https://github.com/ronnysadamhusen/workshop-first-step-into-power-bi-dashboard-in-coal-mining-industry/blob/main/Setup_Workshop_PBI.bat) sebagai Administrator. Skrip ini akan otomatis:
-
-* Menginstal Docker Desktop.
-* Mengonfigurasi Database SQL Server Express.
-* Membuat user akses `dec`.
+**Apa yang dilakukan skrip ini?**
+* Mengecek dan **Menginstal Power BI Desktop** (jika belum ada).
+* Menginstal **Docker Desktop**.
+* Menjalankan **Azure SQL Edge** (Database Engine yang ringan & stabil).
+* Menyiapkan user akses `dec` dan database latihan.
 
 **Cara Menjalankan:**
 
-1. Klik kanan file [Setup_Workshop_PBI.bat](https://github.com/ronnysadamhusen/workshop-first-step-into-power-bi-dashboard-in-coal-mining-industry/blob/main/Setup_Workshop_PBI.bat).
-2. Pilih **Run as Administrator**.
-3. Ikuti instruksi yang muncul di layar. Jika diminta **Restart**, silakan lakukan dan jalankan ulang skrip setelah restart.
-4. Setelah selesai restart pasca install docker, Anda akan dihadapkan dengan window Docker Desktop untuk setup awal. SIlahkan klik tombol Accept dan skip pada halaman login. Silahkan ikuti tutorial yang ada dalam video di youtube ini (menit 2:40 - 2:50) [Setup Docker Desktop](https://youtu.be/fsR8fj7iCNY?si=EclTun7RrIgSlKxX&t=160)
+1.  Download file skrip [Setup_Workshop_PBI.bat](https://github.com/ronnysadamhusen/workshop-first-step-into-power-bi-dashboard-in-coal-mining-industry/blob/main/Setup_Workshop_PBI.bat)
+2.  Klik kanan file tersebut.
+3.  Pilih **Run as Administrator**.
+4.  Ikuti instruksi yang muncul di layar hitam (CMD).
+5.  **PENTING:** Jika diminta **Restart**, silakan lakukan, lalu jalankan ulang skrip tersebut setelah laptop menyala kembali.
+6.  Setelah instalasi Docker selesai, jika muncul jendela *Docker Desktop Subscription Service Agreement*, silakan klik **Accept** (Anda bisa *Skip* bagian login/sign-up).
 
-> [!IMPORTANT]
-> **Run as Administrator** adalah syarat mutlak agar perintah dalam skrip dapat dijalankan dengan lancar.
+> [!TIP]
+> Jika skrip gagal menginstal Power BI secara otomatis karena kendala jaringan, Anda dapat mengunduhnya secara manual melalui [Microsoft Store Link](https://aka.ms/pbidesktopstore).
 
 ---
 
 ## 📝 Detail Akses Database (Setelah Setup Selesai)
 
-Setelah skrip selesai dijalankan, Anda akan memiliki akses database lokal dengan detail:
+Setelah skrip menampilkan pesan **"SETUP BERHASIL"**, Anda akan memiliki akses database lokal dengan detail berikut untuk digunakan di Power BI:
 
 * **Server:** `localhost`
+* **Database Engine:** Azure SQL Edge
 * **Username:** `dec`
 * **Password:** `Siapbisa@2026`
 * **Port:** `1433`
@@ -93,16 +91,19 @@ Setelah skrip selesai dijalankan, Anda akan memiliki akses database lokal dengan
 **Q: Docker saya tidak mau start, muncul pesan "WSL 2 installation is incomplete".**
 A: Silakan unduh update kernel WSL2 dari Microsoft di [link ini](https://aka.ms/wsl2kernel), instal, lalu coba buka kembali Docker Desktop.
 
-**Q: Apakah saya boleh menggunakan MacOS?**
-A: Workshop ini didesain utama untuk pengguna Windows karena Power BI Desktop hanya berjalan secara native di Windows. Pengguna Mac disarankan menggunakan mesin virtual (seperti Parallels atau VMWare).
+**Q: Apakah data saya akan hilang jika saya mematikan laptop?**
+A: **Tidak.** Skrip versi terbaru menggunakan fitur *Docker Named Volume* (`sql_volume_wspbi`). Data Anda tersimpan aman di dalam sistem Docker dan akan dimuat kembali secara otomatis saat Anda menyalakan Docker.
 
 **Q: Folder `C:\dec\wspbi` boleh saya hapus?**
-A: **Jangan dihapus** selama workshop berlangsung, karena semua data database Anda tersimpan secara fisik di folder tersebut.
+A: Folder ini berisi konfigurasi peluncur (`docker-compose.yml`). Sebaiknya **jangan dihapus** selama periode workshop agar Anda mudah melakukan *troubleshooting* atau *restart* layanan jika diperlukan.
+
+**Q: Saya pengguna MacOS, bagaimana?**
+A: Workshop ini didesain utama untuk pengguna Windows karena Power BI Desktop hanya berjalan secara native di Windows. Pengguna Mac disarankan menggunakan mesin virtual (seperti Parallels Desktop) untuk menjalankan Windows.
 
 ---
+
+**Created by Ronny Sadam Husen**
+* [LinkedIn](https://linkedin.com/in/ronnysadamhusen)
+* [GitHub](https://github.com/ronnysadamhusen)
 
 Sampai jumpa di kelas! Mari kita mulai langkah pertama menjadi seorang *Data Storyteller*.
-
----
-
-**Next Step:** Apakah Anda ingin saya membuatkan **materi pengantar singkat** mengenai cara menghubungkan Power BI ke database SQL Server di Docker tersebut untuk melengkapi dokumen ini?
