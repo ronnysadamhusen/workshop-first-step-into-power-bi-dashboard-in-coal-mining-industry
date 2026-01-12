@@ -70,6 +70,7 @@ Download dan jalankan skrip [Setup_Workshop_PBI.bat](https://github.com/ronnysad
 1. Klik kanan file [Setup_Workshop_PBI.bat](https://github.com/ronnysadamhusen/workshop-first-step-into-power-bi-dashboard-in-coal-mining-industry/blob/main/Setup_Workshop_PBI.bat).
 2. Pilih **Run as Administrator**.
 3. Ikuti instruksi yang muncul di layar. Jika diminta **Restart**, silakan lakukan dan jalankan ulang skrip setelah restart.
+4. Setelah selesai restart pasca install docker, Anda akan dihadapkan dengan window Docker Desktop untuk setup awal. SIlahkan klik tombol Accept dan skip pada halaman login. Silahkan ikuti tutorial yang ada dalam video di youtube ini (menit 2:40 - 2:50) [Setup Docker Desktop](https://youtu.be/fsR8fj7iCNY?si=EclTun7RrIgSlKxX&t=160)
 
 > [!IMPORTANT]
 > **Run as Administrator** adalah syarat mutlak agar perintah dalam skrip dapat dijalankan dengan lancar.
