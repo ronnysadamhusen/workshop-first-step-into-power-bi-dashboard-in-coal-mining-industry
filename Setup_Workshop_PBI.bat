@@ -2,6 +2,17 @@
 setlocal enabledelayedexpansion
 title Workshop Power BI Setup - By Ronny Sadam Husen
 
+:: ==========================================
+:: LOGGING SETUP
+:: ==========================================
+:: Log disimpan di folder yang sama dengan skrip ini
+set "LOG_FILE=%~dp0setup_debug.log"
+:: Reset log file setiap kali dijalankan baru
+if exist "%LOG_FILE%" del "%LOG_FILE%"
+
+call :Log "=== SETUP DIMULAI ==="
+call :Log "Waktu: %DATE% %TIME%"
+
 :: =======================================================
 ::                 INFORMASI PENGEMBANG
 :: =======================================================
@@ -12,13 +23,17 @@ echo  ===================================================
 echo   Created by : Ronny Sadam Husen
 echo   LinkedIn   : linkedin.com/in/ronnysadamhusen
 echo   GitHub     : github.com/ronnysadamhusen
-echo   Version    : 2.0 (Data Persistent / Aman)
+echo   Version    : 2.3 (With Debug Logging)
 echo  ===================================================
 echo.
 echo  Skrip ini akan mempersiapkan laptop Anda:
 echo  1. Menginstal Power BI Desktop
 echo  2. Menginstal Docker Desktop + SQL Edge
 echo  3. Menyiapkan Database (Data TIDAK akan dihapus jika sudah ada)
+echo.
+echo  [DEBUG INFO]
+echo  Jika skrip macet atau berjalan lama, cek file log di:
+echo  "%LOG_FILE%"
 echo.
 echo  [PENTING] Pastikan koneksi internet stabil.
 echo.
@@ -33,42 +48,50 @@ set "TARGET_DIR=C:\dec\wspbi"
 
 :: 1. SIAPKAN FOLDER KERJA
 echo.
-echo [1/10] Menyiapkan folder kerja di C:\dec\wspbi...
+call :Log "[1/10] Menyiapkan folder kerja di C:\dec\wspbi..."
 if not exist "%TARGET_DIR%" mkdir "%TARGET_DIR%"
 cd /d "%TARGET_DIR%"
+call :Log "Current Directory: %CD%"
 
 :: 2. DETEKSI & INSTALASI POWER BI
-echo [2/10] Mengecek instalasi Power BI Desktop...
+call :Log "[2/10] Mengecek instalasi Power BI Desktop via Winget..."
+call :Log "NOTE: Proses ini mungkin butuh waktu tergantung koneksi ke Winget Source..."
+call :Log "      (Cek log file untuk detail output Winget)"
 
-winget list --id Microsoft.PowerBI >nul 2>&1
+:: Capture output winget ke log untuk diagnosa
+echo [WINGET OUTPUT START] >> "%LOG_FILE%"
+winget list --id Microsoft.PowerBI >> "%LOG_FILE%" 2>&1
+echo [WINGET OUTPUT END] >> "%LOG_FILE%"
+
 if %errorlevel% equ 0 (
-    echo     [INFO] Power BI Desktop sudah terinstal.
+    call :Log "[INFO] Power BI Desktop sudah terinstal."
 ) else (
-    echo     [INFO] Power BI belum ditemukan.
-    echo     Mengunduh dan Menginstal...
+    call :Log "[INFO] Power BI belum ditemukan di Winget List."
+    call :Log "Mengunduh dan Menginstal Power BI..."
     echo     (Jendela download akan muncul, mohon tunggu sampai 100%%)
     echo.
-    winget install --id Microsoft.PowerBI --accept-package-agreements --accept-source-agreements
+    
+    :: Install dan catat output ke log
+    winget install --id Microsoft.PowerBI --accept-package-agreements --accept-source-agreements >> "%LOG_FILE%" 2>&1
     
     echo.
-    echo     [INFO] Menunggu proses registrasi aplikasi (10 detik)...
+    call :Log "[INFO] Menunggu proses registrasi aplikasi (10 detik)..."
     timeout /t 10 >nul
 )
 
 :: 3. STOP DOCKER LAMA (TANPA MENGHAPUS DATA)
 if exist "%DOCKER_EXE%" (
-    echo [3/10] Mematikan container yang sedang berjalan...
-    :: Menghapus flag -v agar Volume Data tetap AMAN
-    "%DOCKER_EXE%" compose down >nul 2>&1
+    call :Log "[3/10] Mematikan container yang sedang berjalan..."
+    "%DOCKER_EXE%" compose down >> "%LOG_FILE%" 2>&1
 )
 
 :: 4. CEK DOCKER DESKTOP
-echo [4/10] Mengecek Docker Desktop...
+call :Log "[4/10] Mengecek Docker Desktop..."
 if not exist "%DOCKER_EXE%" (
-    echo     Docker belum ada. Menginstal via Winget...
-    winget install -e --id Docker.DockerDesktop --accept-package-agreements --accept-source-agreements
+    call :Log "Docker belum ada. Menginstal via Winget..."
+    winget install -e --id Docker.DockerDesktop --accept-package-agreements --accept-source-agreements >> "%LOG_FILE%" 2>&1
     echo.
-    echo     [PENTING] Instalasi Docker selesai. 
+    call :Log "[PENTING] Instalasi Docker selesai."
     echo     SILAKAN RESTART KOMPUTER ANDA SEKARANG.
     echo     Setelah restart, jalankan skrip ini kembali.
     pause
@@ -76,19 +99,19 @@ if not exist "%DOCKER_EXE%" (
 )
 
 :: 5. MEMASTIKAN ENGINE AKTIF
-echo [5/10] Memastikan Docker Engine aktif...
+call :Log "[5/10] Memastikan Docker Engine aktif..."
 
 :: Cek status awal
-"%DOCKER_EXE%" info >nul 2>&1
+"%DOCKER_EXE%" info >> "%LOG_FILE%" 2>&1
 if !errorlevel! equ 0 goto :docker_ready
 
 :: Jika belum aktif, buka aplikasinya
-echo     Membuka aplikasi Docker Desktop...
+call :Log "Membuka aplikasi Docker Desktop..."
 if exist "%DOCKER_APP%" (
     start "" "%DOCKER_APP%"
 )
 
-echo     Menunggu Docker Engine booting (bisa 1-2 menit)...
+call :Log "Menunggu Docker Engine booting (bisa 1-2 menit)..."
 
 :wait_engine
 timeout /t 5 >nul
@@ -99,10 +122,10 @@ if !errorlevel! neq 0 (
 )
 
 :docker_ready
-echo     Docker Engine SIAP!
+call :Log "Docker Engine SIAP!"
 
 :: 6. MEMBUAT CONFIG YAML (AZURE SQL EDGE)
-echo [6/10] Membuat konfigurasi Database...
+call :Log "[6/10] Membuat konfigurasi Database..."
 (
 echo services:
 echo   sql-edge:
@@ -122,22 +145,23 @@ echo     user: "root"
 echo volumes:
 echo   sql_volume_wspbi:
 ) > docker-compose.yml
+call :Log "File docker-compose.yml berhasil dibuat."
 
 :: 7. JALANKAN CONTAINER (DATA LAMA AKAN DIMUAT ULANG)
-echo [7/10] Menjalankan Database...
-"%DOCKER_EXE%" compose up -d
+call :Log "[7/10] Menjalankan Database..."
+"%DOCKER_EXE%" compose up -d >> "%LOG_FILE%" 2>&1
 
 :: 8. HEALTH CHECK
-echo [8/10] Menunggu Database siap menerima koneksi...
+call :Log "[8/10] Menunggu Database siap menerima koneksi..."
 :wait_sql_ready
 timeout /t 5 >nul
 "%DOCKER_EXE%" exec -i sql-express-workshop /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P Workshop_Password_2026! -Q "SELECT 1" >nul 2>&1
 if !errorlevel! neq 0 goto :wait_sql_ready
-echo     Database SIAP!
+call :Log "Database SIAP!"
 
 :: 9. BUAT USER 'dec' (HANYA JIKA BELUM ADA)
-echo [9/10] Mengecek user akses 'dec'...
-"%DOCKER_EXE%" exec -i sql-express-workshop /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P Workshop_Password_2026! -Q "IF NOT EXISTS (SELECT * FROM sys.server_principals WHERE name = 'dec') BEGIN CREATE LOGIN dec WITH PASSWORD = 'Siapbisa@2026', CHECK_POLICY = OFF; ALTER SERVER ROLE sysadmin ADD MEMBER dec; END"
+call :Log "[9/10] Mengecek user akses 'dec'..."
+"%DOCKER_EXE%" exec -i sql-express-workshop /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P Workshop_Password_2026! -Q "IF NOT EXISTS (SELECT * FROM sys.server_principals WHERE name = 'dec') BEGIN CREATE LOGIN dec WITH PASSWORD = 'Siapbisa@2026', CHECK_POLICY = OFF; ALTER SERVER ROLE sysadmin ADD MEMBER dec; END" >> "%LOG_FILE%" 2>&1
 
 :: 10. SELESAI
 echo.
@@ -145,6 +169,7 @@ echo  ===================================================
 echo              SETUP BERHASIL (100%%)
 echo  ===================================================
 echo.
+call :Log "Setup Selesai dengan Sukses."
 echo  [DATABASE CREDENTIALS]
 echo  Server   : localhost
 echo  User     : dec
@@ -158,3 +183,13 @@ echo  Terima kasih telah menggunakan skrip ini.
 echo  ~ Ronny Sadam Husen
 echo  ===================================================
 pause
+exit /b
+
+:: ==========================================
+:: FUNGSI LOGGING
+:: ==========================================
+:Log
+set "MSG=%~1"
+echo %MSG%
+echo [%DATE% %TIME%] %MSG% >> "%LOG_FILE%"
+exit /b
