@@ -6,6 +6,7 @@ title Workshop Power BI Setup - By Ronny Sadam Husen
 :: LOGGING SETUP
 :: ==========================================
 set "LOG_FILE=%~dp0setup_debug.log"
+:: Reset log file setiap kali dijalankan baru
 if exist "%LOG_FILE%" del "%LOG_FILE%"
 
 call :Log "=== SETUP DIMULAI ==="
@@ -55,6 +56,9 @@ call :Log "Current Directory: %CD%"
 
 :: 2. DETEKSI & INSTALASI POWER BI
 call :Log "[2/11] Mengecek instalasi Power BI Desktop via Winget..."
+call :Log "NOTE: Proses ini mungkin butuh waktu tergantung koneksi ke Winget Source..."
+call :Log "      (Cek log file untuk detail output Winget)"
+
 echo [WINGET OUTPUT START] >> "%LOG_FILE%"
 winget list --id Microsoft.PowerBI >> "%LOG_FILE%" 2>&1
 echo [WINGET OUTPUT END] >> "%LOG_FILE%"
@@ -62,14 +66,22 @@ echo [WINGET OUTPUT END] >> "%LOG_FILE%"
 if %errorlevel% equ 0 (
     call :Log "[INFO] Power BI Desktop sudah terinstal."
 ) else (
-    call :Log "[INFO] Power BI belum ditemukan. Mengunduh dan Menginstal..."
+    call :Log "[INFO] Power BI belum ditemukan di Winget List."
+    call :Log "Mengunduh dan Menginstal Power BI..."
+    echo     (Jendela download akan muncul, mohon tunggu sampai 100%%)
+    echo.
+    
+    :: Install dan catat output ke log
     winget install --id Microsoft.PowerBI --accept-package-agreements --accept-source-agreements >> "%LOG_FILE%" 2>&1
+    
+    echo.
+    call :Log "[INFO] Menunggu proses registrasi aplikasi (10 detik)..."
     timeout /t 10 >nul
 )
 
-:: 3. STOP DOCKER LAMA
+:: 3. STOP DOCKER LAMA (TANPA MENGHAPUS DATA)
 if exist "%DOCKER_EXE%" (
-    call :Log "[3/11] Mematikan container yang mungkin sedang berjalan..."
+    call :Log "[3/11] Mematikan container yang sedang berjalan..."
     "%DOCKER_EXE%" compose down >> "%LOG_FILE%" 2>&1
 )
 
@@ -78,18 +90,28 @@ call :Log "[4/11] Mengecek Docker Desktop..."
 if not exist "%DOCKER_EXE%" (
     call :Log "Docker belum ada. Menginstal via Winget..."
     winget install -e --id Docker.DockerDesktop --accept-package-agreements --accept-source-agreements >> "%LOG_FILE%" 2>&1
-    call :Log "[PENTING] Instalasi Docker selesai. SILAKAN RESTART LAPTOP dan jalankan skrip ini lagi."
+    echo.
+    call :Log "[PENTING] Instalasi Docker selesai."
+    echo     SILAKAN RESTART KOMPUTER ANDA SEKARANG.
+    echo     Setelah restart, jalankan skrip ini kembali.
     pause
     exit
 )
 
 :: 5. MEMASTIKAN ENGINE AKTIF
 call :Log "[5/11] Memastikan Docker Engine aktif..."
+
+:: Cek status awal
 "%DOCKER_EXE%" info >> "%LOG_FILE%" 2>&1
 if !errorlevel! equ 0 goto :docker_ready
 
+:: Jika belum aktif, buka aplikasinya
 call :Log "Membuka aplikasi Docker Desktop..."
-if exist "%DOCKER_APP%" start "" "%DOCKER_APP%"
+if exist "%DOCKER_APP%" (
+    start "" "%DOCKER_APP%"
+)
+
+call :Log "Menunggu Docker Engine booting (bisa 1-2 menit)..."
 
 :wait_engine
 timeout /t 5 >nul
@@ -102,7 +124,7 @@ if !errorlevel! neq 0 (
 :docker_ready
 call :Log "Docker Engine SIAP!"
 
-:: 6. MEMBUAT CONFIG YAML
+:: 6. MEMBUAT CONFIG YAML (AZURE SQL EDGE)
 call :Log "[6/11] Membuat konfigurasi Database..."
 (
 echo services:
@@ -123,9 +145,10 @@ echo     user: "root"
 echo volumes:
 echo   sql_volume_wspbi:
 ) > docker-compose.yml
+call :Log "File docker-compose.yml berhasil dibuat."
 
-:: 7. JALANKAN CONTAINER
-call :Log "[7/11] Menjalankan Database Container..."
+:: 7. JALANKAN CONTAINER (DATA LAMA AKAN DIMUAT ULANG)
+call :Log "[7/11] Menjalankan Database..."
 "%DOCKER_EXE%" compose up -d >> "%LOG_FILE%" 2>&1
 
 :: 8. HEALTH CHECK
@@ -134,24 +157,31 @@ call :Log "[8/11] Menunggu Database siap menerima koneksi..."
 timeout /t 5 >nul
 "%DOCKER_EXE%" exec -i sql-express-workshop /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P Workshop_Password_2026! -Q "SELECT 1" >nul 2>&1
 if !errorlevel! neq 0 goto :wait_sql_ready
-call :Log "Database Engine SIAP!"
+call :Log "Database SIAP!"
 
-:: 9. BUAT USER 'dec'
-call :Log "[9/11] Menyiapkan user akses 'dec'..."
+:: 9. BUAT USER 'dec' (HANYA JIKA BELUM ADA)
+call :Log "[9/11] Mengecek user akses 'dec'..."
 "%DOCKER_EXE%" exec -i sql-express-workshop /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P Workshop_Password_2026! -Q "IF NOT EXISTS (SELECT * FROM sys.server_principals WHERE name = 'dec') BEGIN CREATE LOGIN dec WITH PASSWORD = 'Siapbisa@2026', CHECK_POLICY = OFF; ALTER SERVER ROLE sysadmin ADD MEMBER dec; END" >> "%LOG_FILE%" 2>&1
 
 :: 10. IMPORT DATABASE DUMMY
 call :Log "[10/11] Mengecek file database dummy (setup_database_fms.sql)..."
+
 if exist "%SQL_FILE%" (
-    call :Log "File ditemukan. Mengimpor data ke Azure SQL Edge..."
-    type "%SQL_FILE%" | "%DOCKER_EXE%" exec -i sql-express-workshop /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P Workshop_Password_2026! >> "%LOG_FILE%" 2>&1
+    call :Log "File ditemukan. Menyalin file ke dalam container..."
+    
+    :: Cara Baru: Copy file dulu ke container (Lebih stabil daripada pipe)
+    "%DOCKER_EXE%" cp "%SQL_FILE%" sql-express-workshop:/var/opt/mssql/setup_database_fms.sql >> "%LOG_FILE%" 2>&1
+    
+    call :Log "Menjalankan proses import di dalam container..."
+    "%DOCKER_EXE%" exec -i sql-express-workshop /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P Workshop_Password_2026! -i /var/opt/mssql/setup_database_fms.sql >> "%LOG_FILE%" 2>&1
+    
     if !errorlevel! equ 0 (
         call :Log "IMPORT BERHASIL: Database 'fms' siap digunakan."
     ) else (
-        call :Log "[PERINGATAN] Import selesai dengan beberapa peringatan/error. Cek log."
+        call :Log "[PERINGATAN] Import selesai namun mungkin ada error. Cek log."
     )
 ) else (
-    call :Log "[INFO] File 'setup_database_fms.sql' tidak ditemukan. Peserta harus import manual atau pastikan file ada di folder skrip."
+    call :Log "[INFO] File 'setup_database_fms.sql' tidak ditemukan. Lewati langkah import."
 )
 
 :: 11. SELESAI
@@ -163,3 +193,24 @@ echo.
 call :Log "Setup Selesai dengan Sukses."
 echo  [DATABASE CREDENTIALS]
 echo  Server   : localhost
+echo  User     : dec
+echo  Password : Siapbisa@2026
+echo.
+echo  [STATUS DATA]
+echo  Database Anda disimpan di Volume Docker "sql_volume_wspbi".
+echo  Data tidak akan hilang meski laptop dimatikan/restart.
+echo.
+echo  Terima kasih telah menggunakan skrip ini.
+echo  ~ Ronny Sadam Husen
+echo  ===================================================
+pause
+exit /b
+
+:: ==========================================
+:: FUNGSI LOGGING
+:: ==========================================
+:Log
+set "MSG=%~1"
+echo %MSG%
+echo [%DATE% %TIME%] %MSG% >> "%LOG_FILE%"
+exit /b
